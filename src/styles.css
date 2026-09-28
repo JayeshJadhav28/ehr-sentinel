@@ -1,0 +1,251 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * EHR Sentinel — Design System
+ * Light-first healthcare security operations interface.
+ * Electric blue brand, restrained severity palette, Inter typeface.
+ * Dark security surfaces used selectively, never globally.
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: calc(var(--radius));
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background:           var(--background);
+  --color-foreground:           var(--foreground);
+  --color-card:                 var(--card);
+  --color-card-foreground:      var(--card-foreground);
+  --color-popover:              var(--popover);
+  --color-popover-foreground:   var(--popover-foreground);
+  --color-primary:              var(--primary);
+  --color-primary-foreground:   var(--primary-foreground);
+  --color-secondary:            var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted:                var(--muted);
+  --color-muted-foreground:     var(--muted-foreground);
+  --color-accent:               var(--accent);
+  --color-accent-foreground:    var(--accent-foreground);
+  --color-destructive:          var(--destructive);
+  --color-border:               var(--border);
+  --color-input:                var(--input);
+  --color-ring:                 var(--ring);
+  --color-surface:              var(--surface);
+  --color-surface-subtle:       var(--surface-subtle);
+
+  /* Severity — semantic, never decorative */
+  --color-severity-high:        var(--severity-high);
+  --color-severity-medium:      var(--severity-medium);
+  --color-severity-low:         var(--severity-low);
+  --color-severity-benign:      var(--severity-benign);
+
+  /* Dark security surfaces — used selectively */
+  --color-security-bg:          var(--security-bg);
+  --color-security-surface:     var(--security-surface);
+  --color-security-border:      var(--security-border);
+  --color-security-text:        var(--security-text);
+  --color-security-muted:       var(--security-muted);
+
+  /* Charts */
+  --color-chart-1:              var(--chart-1);
+  --color-chart-2:              var(--chart-2);
+  --color-chart-3:              var(--chart-3);
+  --color-chart-4:              var(--chart-4);
+  --color-chart-5:              var(--chart-5);
+
+  /* Typography — Inter primary, JetBrains Mono for technical data */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system,
+               BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas,
+               "Liberation Mono", monospace;
+}
+
+/* ─── Light theme (default) ─────────────────────────────────────── */
+:root {
+  --radius: 0.5rem; /* 8px — inputs, buttons */
+
+  /* Spec §4.2 — Core Neutrals */
+  --background:    #F7F8FA;
+  --foreground:    #171A1F;
+  --surface:       #FFFFFF;
+  --surface-subtle:#F1F3F5;
+  --card:          #FFFFFF;
+  --card-foreground: #171A1F;
+  --popover:       #FFFFFF;
+  --popover-foreground: #171A1F;
+  --border:        #E2E6EA;
+  --input:         #E2E6EA;
+
+  /* Spec §4.1 — Electric blue brand */
+  --primary:          #2B89FF;
+  --primary-foreground: #FFFFFF;
+
+  --secondary:          #F1F3F5;
+  --secondary-foreground: #171A1F;
+
+  --muted:              #F1F3F5;
+  --muted-foreground:   #8B94A1;
+
+  --accent:             #EEF4FF;
+  --accent-foreground:  #1A5FCC;
+
+  --destructive:        #D64545;
+
+  --ring:               #2B89FF;
+
+  /* Spec §5 — Semantic severity */
+  --severity-high:    #D64545;
+  --severity-medium:  #D99000;
+  --severity-low:     #2B89FF;
+  --severity-benign:  #22A06B;
+
+  /* Spec §4.3 — Dark security surfaces (selective use only) */
+  --security-bg:      #11151B;
+  --security-surface: #181D24;
+  --security-border:  #29313B;
+  --security-text:    #F5F7FA;
+  --security-muted:   #AAB2BD;
+
+  /* Chart palette */
+  --chart-1: #2B89FF;
+  --chart-2: #D64545;
+  --chart-3: #D99000;
+  --chart-4: #22A06B;
+  --chart-5: #7C3AED;
+
+  /* Spec §10 — Elevation shadows */
+  --shadow-sm:  0 1px 2px rgba(23, 26, 31, 0.06);
+  --shadow-md:  0 2px 6px rgba(23, 26, 31, 0.08);
+  --shadow-lg:  0 8px 30px rgba(23, 26, 31, 0.12);
+}
+
+/* ─── Base layer ────────────────────────────────────────────────── */
+@layer base {
+  * {
+    border-color: var(--color-border);
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* Spec §53 — Focus must never be removed */
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Spec §36 — Table headers */
+  th {
+    font-weight: 600;
+    letter-spacing: 0.03em;
+  }
+
+  /* Smooth scrolling inside drawers/panels */
+  .overflow-y-auto,
+  .overflow-x-auto {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+}
+
+/* ─── Utility classes ───────────────────────────────────────────── */
+
+/*
+ * panel — the primary card surface throughout EHR Sentinel.
+ * Spec §9: 10px radius for cards, subtle border does structural work.
+ */
+@utility panel {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: calc(var(--radius) + 2px); /* 10px */
+  box-shadow: var(--shadow-sm);
+}
+
+/*
+ * panel-security — dark surface for security-focused sections.
+ * Spec §4.3: selective use, not the whole app.
+ */
+@utility panel-security {
+  background-color: var(--color-security-surface);
+  border: 1px solid var(--color-security-border);
+  border-radius: calc(var(--radius) + 2px);
+  color: var(--color-security-text);
+}
+
+/*
+ * label-xs — uppercase section label.
+ * Spec §7.1: metadata / label tier.
+ */
+@utility label-xs {
+  font-size: 0.6875rem;   /* 11px */
+  line-height: 1rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+  font-weight: 600;
+}
+
+/*
+ * mono-xs — technical identifiers.
+ * Spec §57–58: event IDs, UUIDs, model versions only.
+ */
+@utility mono-xs {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;  /* 11px */
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
+/*
+ * severity-stripe — left border accent on alert cards.
+ * Spec §6: color never alone; paired with text label.
+ */
+@utility severity-stripe-high {
+  border-left: 3px solid var(--color-severity-high);
+}
+@utility severity-stripe-medium {
+  border-left: 3px solid var(--color-severity-medium);
+}
+@utility severity-stripe-low {
+  border-left: 3px solid var(--color-severity-low);
+}
+@utility severity-stripe-benign {
+  border-left: 3px solid var(--color-severity-benign);
+}
+
+/*
+ * demo-badge — neutral blue/gray per spec §12.
+ * Never use warning/amber for the demo indicator.
+ */
+@utility demo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.125rem 0.625rem;
+  border-radius: 9999px;
+  border: 1px solid #C7D7F0;
+  background-color: #EEF4FF;
+  color: #1A5FCC;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
