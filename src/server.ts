@@ -1,5 +1,7 @@
 import "./lib/error-capture";
+import "./lib/keep-alive";          // ← add this line
 
+import { startKeepAlive } from "./lib/keep-alive";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 
@@ -8,6 +10,7 @@ type ServerEntry = {
 };
 
 let serverEntryPromise: Promise<ServerEntry> | undefined;
+let keepAliveStarted = false;       // ← add this
 
 async function getServerEntry(): Promise<ServerEntry> {
   if (!serverEntryPromise) {
@@ -46,6 +49,12 @@ function isH3SwallowedErrorBody(body: string): boolean {
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    // Start keep-alive on first real request (server is definitely up by then)
+    if (!keepAliveStarted) {                // ← add this block
+      keepAliveStarted = true;
+      startKeepAlive();
+    }
+
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
