@@ -12,7 +12,7 @@ export function LoadingState({ label = "Loading" }: { label?: string }) {
       aria-label={`${label}…`}
     >
       {/* Skeleton pulse */}
-      <div className="space-y-2 flex-1">
+      <div className="space-y-2 flex-1" aria-hidden="true">
         <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
         <div className="h-2.5 w-2/3 animate-pulse rounded bg-muted" />
         <div className="h-2.5 w-1/2 animate-pulse rounded bg-muted" />
@@ -68,6 +68,7 @@ export function ErrorState({
       : raw.replace(/^[A-Z_]+:/, "").trim();
 
   const Icon = forbidden ? ShieldOff : AlertTriangle;
+  const toneText = forbidden ? "text-severity-high" : "text-severity-medium";
 
   return (
     <div
@@ -81,28 +82,19 @@ export function ErrorState({
     >
       <div className="flex items-start gap-3">
         <Icon
-          className={cn(
-            "mt-0.5 h-5 w-5 shrink-0",
-            forbidden ? "text-severity-high" : "text-severity-medium",
-          )}
-          aria-hidden
+          className={cn("mt-0.5 h-5 w-5 shrink-0", toneText)}
+          aria-hidden="true"
         />
         <div>
-          <p
-            className={cn(
-              "text-sm font-semibold",
-              forbidden ? "text-severity-high" : "text-severity-medium",
-            )}
-          >
-            {title}
-          </p>
+          <p className={cn("text-sm font-semibold", toneText)}>{title}</p>
           <p className="mt-1 text-sm text-muted-foreground">{body}</p>
           {onRetry && (
             <button
+              type="button"
               onClick={onRetry}
               className="mt-4 inline-flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-foreground transition-colors hover:bg-accent"
             >
-              <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
               Try again
             </button>
           )}
