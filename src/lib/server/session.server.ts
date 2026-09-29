@@ -5,6 +5,10 @@ import type { CurrentUser, RoleName } from "@/lib/types/auth";
 export const SESSION_COOKIE = "ehrs_session";
 export const SESSION_TTL_MINUTES = 60;
 
+/** Fallback source IP used when no proxy/client IP header is present (local development). */
+const DEFAULT_SOURCE_IP = "10.20.4.11";
+
+/** Reads the raw session token from the request cookie header, or null if absent. */
 export function readSessionToken(): string | null {
   const cookie = getRequestHeader("cookie") ?? "";
   const match = cookie.split(/;\s*/).find((c) => c.startsWith(`${SESSION_COOKIE}=`));
@@ -22,18 +26,21 @@ function writeCookie(value: string, maxAgeSeconds: number) {
   );
 }
 
+/** Expires the session cookie immediately. */
 export function clearSessionCookie() {
   writeCookie("", 0);
 }
 
+/** Best-effort client IP: CDN header, then first proxy hop, then a local default. */
 export function clientIp(): string {
   return (
     getRequestHeader("cf-connecting-ip") ??
     getRequestHeader("x-forwarded-for")?.split(",")[0]?.trim() ??
-    "10.20.4.11"
+    DEFAULT_SOURCE_IP
   );
 }
 
+/** Creates a session row (only the token hash is stored) and sets the httpOnly cookie. */
 export async function createSession(userId: string, sourceIp: string): Promise<{ sessionId: string }> {
   const token = `${crypto.randomUUID()}.${crypto.randomUUID()}`;
   const sessionId = crypto.randomUUID();
@@ -68,6 +75,8 @@ export async function getSessionContext(): Promise<SessionContext | null> {
     .eq("token_hash", tokenHash)
     .maybeSingle();
   if (error) throw new Error(`SECURITY_DEPENDENCY_UNAVAILABLE:sessions:${error.message}`);
+
+  // Unknown, revoked or expired sessions are treated as unauthenticated.
   if (!session || session.revoked_at) return null;
   if (new Date(session.expires_at).getTime() < Date.now()) return null;
 
@@ -130,6 +139,7 @@ export async function contextForSession(userId: string, sessionId: string): Prom
   };
 }
 
+/** Like getSessionContext, but throws UNAUTHENTICATED when there is no valid session. */
 export async function requireSession(): Promise<SessionContext> {
   const ctx = await getSessionContext();
   if (!ctx) {
@@ -138,6 +148,7 @@ export async function requireSession(): Promise<SessionContext> {
   return ctx;
 }
 
+/** Marks the session as revoked in the database and clears the cookie. */
 export async function revokeSession(sessionId: string): Promise<void> {
   await db.from("sessions").update({ revoked_at: new Date().toISOString() }).eq("id", sessionId);
   clearSessionCookie();
