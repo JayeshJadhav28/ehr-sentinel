@@ -6,6 +6,7 @@ import { logAccessEvent } from "./audit.server";
 import type { SessionContext } from "./session.server";
 import { evaluateUser } from "./detection.server";
 
+/** Returned to the caller when authorization fails (HTTP 403 equivalent). */
 export interface DenialPayload {
   denied: true;
   status: 403;
@@ -15,6 +16,7 @@ export interface DenialPayload {
   actualStatement: string;
 }
 
+/** IDs of patients the user is currently assigned to (expired assignments are ignored). */
 export async function assignedPatientIds(userId: string): Promise<Set<string>> {
   const { data, error } = await db
     .from("care_assignments")
@@ -34,11 +36,13 @@ interface PatientRow {
   demographic_band: string;
 }
 
+/** Map of department id -> department name, used to label patients. */
 async function departmentNames(): Promise<Map<string, string>> {
   const { data } = await db.from("departments").select("id,name");
   return new Map((data ?? []).map((d) => [d.id, d.name]));
 }
 
+/** Searches patients. The attempt is always audited, and non-clinical or denied callers get an empty list. */
 export async function listPatients(ctx: SessionContext, query: string): Promise<Patient[]> {
   const decision = authorize({
     role: ctx.role,
@@ -72,6 +76,7 @@ export async function listPatients(ctx: SessionContext, query: string): Promise<
 
   let builder = db.from("patients").select("id,synthetic_mrn,display_name,department_id,demographic_band");
   if (query.trim()) {
+    // Strip characters that would break the PostgREST filter expression.
     const q = query.trim().replace(/[%,]/g, "");
     builder = builder.or(`synthetic_mrn.ilike.%${q}%,display_name.ilike.%${q}%`);
   }
@@ -96,6 +101,11 @@ export interface PatientDetail {
   visitCount: number;
 }
 
+/**
+ * Returns a patient's detail and records, or a denial payload.
+ * Flow: load patient -> authorize (role + scope + assignment) -> audit the
+ * attempt (allowed or denied) -> on denial, trigger detection and return 403 data.
+ */
 export async function getPatientDetail(
   ctx: SessionContext,
   patientId: string,
@@ -127,6 +137,7 @@ export async function getPatientDetail(
     assignedPatientIds: assigned,
   });
 
+  // Records are only fetched when access is allowed.
   const { data: records } = decision.allowed
     ? await db
         .from("patient_records")
@@ -135,6 +146,7 @@ export async function getPatientDetail(
         .order("created_at", { ascending: false })
     : { data: [] };
 
+  // Every attempt is audited, including denials.
   await logAccessEvent({
     eventType: decision.allowed ? "RECORD_ACCESS" : "AUTHZ",
     userId: ctx.id,
@@ -153,6 +165,7 @@ export async function getPatientDetail(
   });
 
   if (!decision.allowed) {
+    // Denied access feeds the detection engine.
     await evaluateUser({ userId: ctx.id, windowMinutes: 60, scenarioTag: "LIVE", persistBenign: false });
     return {
       denied: true,
