@@ -29,6 +29,36 @@ export interface DetectionOutcome {
   mlScore: number;
 }
 
+interface RuleFlags {
+  brute: boolean;
+  bulk: boolean;
+  scope: boolean;
+}
+
+/** Returns true when the rule with the given id fired in this window. */
+function isTriggered(rules: RuleTrigger[], ruleId: string): boolean {
+  return rules.find((r) => r.ruleId === ruleId)?.triggered ?? false;
+}
+
+/** Picks the alert type from the fired rules. Benign context always wins. */
+export function classifyAlertType(flags: RuleFlags, benign: boolean): AlertType {
+  if (benign) return "BENIGN_HIGH_ACTIVITY";
+  const triggeredCount = [flags.brute, flags.bulk, flags.scope].filter(Boolean).length;
+  if (triggeredCount > 1) return "COMBINED_ATTACK";
+  if (flags.brute) return "AUTH_BRUTE";
+  if (flags.scope) return "ROLE_SCOPE_VIOLATION";
+  if (flags.bulk) return "BULK_RECORD_ACCESS";
+  return "BENIGN_HIGH_ACTIVITY";
+}
+
+/** Brute force and scope violations are HIGH; bulk access alone is MEDIUM. */
+export function classifySeverity(flags: RuleFlags, benign: boolean): Severity {
+  if (benign) return "BENIGN";
+  if (flags.brute || flags.scope) return "HIGH";
+  if (flags.bulk) return "MEDIUM";
+  return "LOW";
+}
+
 /**
  * Access Event -> Feature Builder -> Rule Engine -> ML Engine ->
  * Risk/Evidence Correlator -> Alert
@@ -46,35 +76,31 @@ export async function runDetection(input: DetectionInput): Promise<DetectionOutc
   const features = buildFeatures(windowEvents, profile, signals, now);
   const ml = await getAnomalyDetectionService().score(features, profile ? "USER" : "GLOBAL");
 
-  const brute = rules.find((r) => r.ruleId === "AUTH_BRUTE")?.triggered ?? false;
-  const bulk = rules.find((r) => r.ruleId === "BULK_RECORD_ACCESS")?.triggered ?? false;
-  const scope = rules.find((r) => r.ruleId === "ROLE_SCOPE_VIOLATION")?.triggered ?? false;
+  const flags: RuleFlags = {
+    brute: isTriggered(rules, "AUTH_BRUTE"),
+    bulk: isTriggered(rules, "BULK_RECORD_ACCESS"),
+    scope: isTriggered(rules, "ROLE_SCOPE_VIOLATION"),
+  };
 
   const legitimateContext =
-    !scope && !brute && signals.allAccessesAssigned && !signals.outsideWorkingHours && signals.historicallyElevated;
+    !flags.scope &&
+    !flags.brute &&
+    signals.allAccessesAssigned &&
+    !signals.outsideWorkingHours &&
+    signals.historicallyElevated;
 
   const risk = scoreRisk({
-    authBrute: brute,
-    bulkAccess: bulk,
-    scopeViolation: scope,
+    authBrute: flags.brute,
+    bulkAccess: flags.bulk,
+    scopeViolation: flags.scope,
     mlScoreComponent: ml.anomalyScore,
     legitimateContext,
   });
 
-  const benign = legitimateContext && !brute && !scope;
+  const benign = legitimateContext && !flags.brute && !flags.scope;
 
-  let alertType: AlertType = "BENIGN_HIGH_ACTIVITY";
-  const triggeredCount = [brute, bulk, scope].filter(Boolean).length;
-  if (benign) alertType = "BENIGN_HIGH_ACTIVITY";
-  else if (triggeredCount > 1) alertType = "COMBINED_ATTACK";
-  else if (brute) alertType = "AUTH_BRUTE";
-  else if (scope) alertType = "ROLE_SCOPE_VIOLATION";
-  else if (bulk) alertType = "BULK_RECORD_ACCESS";
-
-  let severity: Severity = "LOW";
-  if (benign) severity = "BENIGN";
-  else if (brute || scope) severity = "HIGH";
-  else if (bulk) severity = "MEDIUM";
+  const alertType = classifyAlertType(flags, benign);
+  const severity = classifySeverity(flags, benign);
 
   const evidence = buildEvidence({
     identity: input.identity,
