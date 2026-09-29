@@ -1,5 +1,8 @@
 import { DETECTION_CONFIG } from "@/lib/constants";
 
+const MIN_RISK_SCORE = 0;
+const MAX_RISK_SCORE = 100;
+
 export interface RiskInput {
   authBrute: boolean;
   bulkAccess: boolean;
@@ -32,7 +35,9 @@ export function scoreRisk(input: RiskInput): RiskBreakdown {
     lines.push({ label: "ROLE_SCOPE_VIOLATION triggered", value: cfg.scopeViolation });
   }
 
-  const mlPoints = Math.round(input.mlScoreComponent * cfg.mlWeight);
+  // Guard against NaN/Infinity from the model so the score stays a finite number.
+  const mlScore = Number.isFinite(input.mlScoreComponent) ? input.mlScoreComponent : 0;
+  const mlPoints = Math.round(mlScore * cfg.mlWeight);
   risk += mlPoints;
   lines.push({ label: "Model-derived signal contribution", value: mlPoints });
 
@@ -41,5 +46,5 @@ export function scoreRisk(input: RiskInput): RiskBreakdown {
     lines.push({ label: "Legitimate context relief", value: -cfg.legitimateContextRelief });
   }
 
-  return { score: Math.max(0, Math.min(100, risk)), lines };
+  return { score: Math.max(MIN_RISK_SCORE, Math.min(MAX_RISK_SCORE, risk)), lines };
 }

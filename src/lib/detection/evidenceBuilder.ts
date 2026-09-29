@@ -18,6 +18,10 @@ function hourLabel(iso: string): string {
   return new Date(iso).toISOString().slice(11, 16);
 }
 
+function plural(count: number, singular: string): string {
+  return `${count} ${singular}${count === 1 ? "" : "s"}`;
+}
+
 export function buildEvidence(input: EvidenceInput): AlertEvidence {
   const events = [...input.windowEvents].sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
@@ -30,12 +34,14 @@ export function buildEvidence(input: EvidenceInput): AlertEvidence {
   const denied = events.filter((e) => e.result === "DENIED").length;
   const failedLogins = events.filter((e) => e.eventType === "AUTH" && e.result === "FAILURE").length;
 
+  const accessEventCount = events.filter((e) => e.eventType === "RECORD_ACCESS").length;
+
   const observed: string[] = [
-    `${totalRecords} records retrieved across ${events.filter((e) => e.eventType === "RECORD_ACCESS").length} access events.`,
-    `${input.signals.uniquePatients1h} unique patients touched in the evaluation window.`,
+    `${plural(totalRecords, "record")} retrieved across ${plural(accessEventCount, "access event")}.`,
+    `${plural(input.signals.uniquePatients1h, "unique patient")} touched in the evaluation window.`,
   ];
-  if (failedLogins) observed.push(`${failedLogins} failed authentication attempts.`);
-  if (denied) observed.push(`${denied} requests denied server-side by the authorization layer.`);
+  if (failedLogins) observed.push(`${plural(failedLogins, "failed authentication attempt")}.`);
+  if (denied) observed.push(`${plural(denied, "request")} denied server-side by the authorization layer.`);
   if (input.signals.newSourceFlag) observed.push("Activity includes a source address not seen in recent history.");
 
   const expected: string[] = input.profile
