@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
+import type { ReactNode } from "react";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -16,7 +17,7 @@ import { ErrorState, LoadingState } from "@/components/common/States";
 import { actOnAlert, getAlert } from "@/lib/api/alerts.functions";
 import { DETECTION_CONFIG } from "@/lib/constants";
 import { RESULT_CLASS, formatTs } from "@/lib/severity";
-import type { ReviewerAction } from "@/lib/types/alert";
+import type { ReviewerAction, Severity } from "@/lib/types/alert";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/alerts/$alertId")({
@@ -33,6 +34,14 @@ export const Route = createFileRoute("/_app/alerts/$alertId")({
   component: AlertDetailPage,
 });
 
+/* Severity left-border stripe — color never alone */
+const SEVERITY_STRIPE: Record<Severity, string> = {
+  HIGH:   "severity-stripe-high",
+  MEDIUM: "severity-stripe-medium",
+  LOW:    "severity-stripe-low",
+  BENIGN: "severity-stripe-benign",
+};
+
 /* ── Section wrapper ────────────────────────────────────────────── */
 function Section({
   title,
@@ -42,7 +51,7 @@ function Section({
 }: {
   title: string;
   subtitle?: string;
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
 }) {
   return (
@@ -74,7 +83,7 @@ function ObservedVsExpected({
             <li key={line} className="flex items-start gap-2 text-sm">
               <CheckCircle2
                 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-severity-benign"
-                aria-hidden
+                aria-hidden="true"
               />
               <span className="text-muted-foreground">{line}</span>
             </li>
@@ -90,7 +99,7 @@ function ObservedVsExpected({
             <li key={line} className="flex items-start gap-2 text-sm">
               <ShieldAlert
                 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-severity-high"
-                aria-hidden
+                aria-hidden="true"
               />
               <span className="font-medium text-foreground">{line}</span>
             </li>
@@ -174,18 +183,12 @@ function AlertDetailPage() {
         to="/alerts"
         className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+        <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
         Back to alerts
       </Link>
 
       {/* ── Alert header ────────────────────────────────────────── */}
-      <div className={cn(
-        "panel p-5",
-        alert.severity === "HIGH" && "severity-stripe-high",
-        alert.severity === "MEDIUM" && "severity-stripe-medium",
-        alert.severity === "LOW" && "severity-stripe-low",
-        alert.severity === "BENIGN" && "severity-stripe-benign",
-      )}>
+      <div className={cn("panel p-5", SEVERITY_STRIPE[alert.severity])}>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             {/* Identity — first thing a reviewer reads */}
@@ -199,7 +202,7 @@ function AlertDetailPage() {
 
             {/* Actor */}
             <div className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
-              <User className="h-3.5 w-3.5" aria-hidden />
+              <User className="h-3.5 w-3.5" aria-hidden="true" />
               {ev.identity.displayName} · {ev.identity.role} · {ev.identity.department}
             </div>
 
@@ -287,10 +290,10 @@ function AlertDetailPage() {
                       <table className="w-full text-left text-xs">
                         <thead>
                           <tr className="border-b border-border">
-                            <th className="label-xs pb-1.5 pr-4">Metric</th>
-                            <th className="label-xs pb-1.5 pr-4">Observed</th>
-                            <th className="label-xs pb-1.5 pr-4">Expected</th>
-                            <th className="label-xs pb-1.5">Deviation</th>
+                            <th scope="col" className="label-xs pb-1.5 pr-4">Metric</th>
+                            <th scope="col" className="label-xs pb-1.5 pr-4">Observed</th>
+                            <th scope="col" className="label-xs pb-1.5 pr-4">Expected</th>
+                            <th scope="col" className="label-xs pb-1.5">Deviation</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -401,12 +404,12 @@ function AlertDetailPage() {
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-border">
                   <tr>
-                    <th className="label-xs py-2 pr-4">Seq</th>
-                    <th className="label-xs py-2 pr-4">Time</th>
-                    <th className="label-xs py-2 pr-4">Action</th>
-                    <th className="label-xs py-2 pr-4">Records</th>
-                    <th className="label-xs py-2 pr-4">Source</th>
-                    <th className="label-xs py-2">Outcome</th>
+                    <th scope="col" className="label-xs py-2 pr-4">Seq</th>
+                    <th scope="col" className="label-xs py-2 pr-4">Time</th>
+                    <th scope="col" className="label-xs py-2 pr-4">Action</th>
+                    <th scope="col" className="label-xs py-2 pr-4">Records</th>
+                    <th scope="col" className="label-xs py-2 pr-4">Source</th>
+                    <th scope="col" className="label-xs py-2">Outcome</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -460,7 +463,7 @@ function AlertDetailPage() {
             <dl className="space-y-3 text-sm">
               <div>
                 <dt className="label-xs flex items-center gap-1.5 mb-1">
-                  <User className="h-3.5 w-3.5" aria-hidden />
+                  <User className="h-3.5 w-3.5" aria-hidden="true" />
                   Actor
                 </dt>
                 <dd className="font-semibold">
@@ -481,7 +484,7 @@ function AlertDetailPage() {
 
               <div>
                 <dt className="label-xs flex items-center gap-1.5 mb-1">
-                  <Clock className="h-3.5 w-3.5" aria-hidden />
+                  <Clock className="h-3.5 w-3.5" aria-hidden="true" />
                   Detection window
                 </dt>
                 <dd className="mono-xs text-muted-foreground">
@@ -512,7 +515,7 @@ function AlertDetailPage() {
                 <li key={line} className="flex items-start gap-2">
                   <Shield
                     className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary"
-                    aria-hidden
+                    aria-hidden="true"
                   />
                   {line}
                 </li>
@@ -534,7 +537,7 @@ function AlertDetailPage() {
                   >
                     <CheckCircle2
                       className="mt-0.5 h-3.5 w-3.5 shrink-0"
-                      aria-hidden
+                      aria-hidden="true"
                     />
                     {line}
                   </li>
@@ -565,6 +568,7 @@ function AlertDetailPage() {
                 {ACTIONS.map((a) => (
                   <button
                     key={a.action}
+                    type="button"
                     onClick={() => mutation.mutate(a.action)}
                     disabled={mutation.isPending}
                     className={cn(
@@ -609,11 +613,11 @@ function AlertDetailPage() {
                   {/* Timeline spine */}
                   <span
                     className="absolute left-0 top-1.5 h-2 w-2 rounded-full bg-border"
-                    aria-hidden
+                    aria-hidden="true"
                   />
                   <span
                     className="absolute left-0.75 top-3.5 h-full w-px bg-border"
-                    aria-hidden
+                    aria-hidden="true"
                   />
 
                   <div className="flex items-start justify-between gap-2">

@@ -58,6 +58,7 @@ function ScenarioPage() {
         description="Each scenario resets its own synthetic events and regenerates them deterministically, so the same run always produces the same detections."
         actions={
           <button
+            type="button"
             onClick={() => reset.mutate()}
             disabled={reset.isPending}
             className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-accent disabled:opacity-60"
@@ -77,6 +78,7 @@ function ScenarioPage() {
         {SCENARIOS.map((scenario) => {
           const result = results[scenario.id];
           const running = mutation.isPending && mutation.variables === scenario.id;
+          const expectsAlert = scenario.expectedOutcome === "ALERT";
           return (
             <article key={scenario.id} className="panel flex flex-col p-4">
               <div className="flex items-start justify-between gap-3">
@@ -87,12 +89,12 @@ function ScenarioPage() {
                 <span
                   className={cn(
                     "rounded border px-2 py-0.5 text-[11px] font-semibold",
-                    scenario.expectedOutcome === "ALERT"
+                    expectsAlert
                       ? "border-severity-high/40 bg-severity-high/10 text-severity-high"
                       : "border-severity-benign/40 bg-severity-benign/10 text-severity-benign",
                   )}
                 >
-                  {scenario.expectedOutcome === "ALERT" ? "EXPECT ALERT" : "EXPECT NO ALERT"}
+                  {expectsAlert ? "EXPECT ALERT" : "EXPECT NO ALERT"}
                 </span>
               </div>
 
@@ -100,6 +102,7 @@ function ScenarioPage() {
               <p className="mt-1 text-xs text-muted-foreground">Expected: {scenario.expectation}</p>
 
               <button
+                type="button"
                 onClick={() => mutation.mutate(scenario.id)}
                 disabled={mutation.isPending}
                 className="mt-3 self-start rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"

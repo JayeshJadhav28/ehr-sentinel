@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowRight, Filter } from "lucide-react";
 import { SeverityBadge, StatusBadge, RiskIndicator } from "@/components/common/SeverityBadge";
 import { EmptyState, ErrorState, LoadingState, PageHeader } from "@/components/common/States";
@@ -32,6 +32,17 @@ const STRIPE: Record<string, string> = {
   BENIGN: "severity-stripe-benign",
 };
 
+/* Filter options — defined once, not rebuilt on every render */
+const SEVERITY_OPTIONS = ["", "HIGH", "MEDIUM", "LOW", "BENIGN"] as const;
+const STATUS_OPTIONS = [
+  "",
+  "OPEN",
+  "INVESTIGATING",
+  "DISMISSED",
+  "ESCALATED",
+  "RESOLVED",
+] as const;
+
 function AlertsPage() {
   const fetchAlerts = useServerFn(getAlerts);
   const query = useQuery({
@@ -42,13 +53,23 @@ function AlertsPage() {
   const [severity, setSeverity] = useState("");
   const [status, setStatus] = useState("");
 
-  const alerts = (query.data ?? []).filter(
-    (a) =>
-      (severity === "" || a.severity === severity) &&
-      (status === "" || a.status === status),
+  const allAlerts = query.data;
+  const alerts = useMemo(
+    () =>
+      (allAlerts ?? []).filter(
+        (a) =>
+          (severity === "" || a.severity === severity) &&
+          (status === "" || a.status === status),
+      ),
+    [allAlerts, severity, status],
   );
 
   const hasFilters = severity !== "" || status !== "";
+
+  function clearFilters() {
+    setSeverity("");
+    setStatus("");
+  }
 
   return (
     <div className="space-y-6">
@@ -60,7 +81,7 @@ function AlertsPage() {
       {/* Filter toolbar */}
       <div className="flex flex-wrap items-end gap-4">
         <div className="flex items-center gap-2 text-muted-foreground">
-          <Filter className="h-4 w-4" aria-hidden />
+          <Filter className="h-4 w-4" aria-hidden="true" />
           <span className="label-xs">Filter</span>
         </div>
 
@@ -74,7 +95,7 @@ function AlertsPage() {
             onChange={(e) => setSeverity(e.target.value)}
             className="block rounded-md border border-input bg-surface px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            {["", "HIGH", "MEDIUM", "LOW", "BENIGN"].map((s) => (
+            {SEVERITY_OPTIONS.map((s) => (
               <option key={s} value={s}>
                 {s === "" ? "All severities" : s}
               </option>
@@ -92,19 +113,18 @@ function AlertsPage() {
             onChange={(e) => setStatus(e.target.value)}
             className="block rounded-md border border-input bg-surface px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            {["", "OPEN", "INVESTIGATING", "DISMISSED", "ESCALATED", "RESOLVED"].map(
-              (s) => (
-                <option key={s} value={s}>
-                  {s === "" ? "All statuses" : s}
-                </option>
-              ),
-            )}
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>
+                {s === "" ? "All statuses" : s}
+              </option>
+            ))}
           </select>
         </div>
 
         {hasFilters && (
           <button
-            onClick={() => { setSeverity(""); setStatus(""); }}
+            type="button"
+            onClick={clearFilters}
             className="text-xs text-primary hover:underline self-end pb-2"
           >
             Clear filters
@@ -197,7 +217,7 @@ function AlertsPage() {
                     </div>
                     <span className="ml-auto flex items-center gap-1 text-xs text-primary opacity-0 transition-opacity group-hover:opacity-100">
                       View evidence
-                      <ArrowRight className="h-3 w-3" aria-hidden />
+                      <ArrowRight className="h-3 w-3" aria-hidden="true" />
                     </span>
                   </div>
                 </Link>
