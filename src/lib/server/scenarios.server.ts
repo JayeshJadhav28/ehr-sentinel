@@ -10,7 +10,17 @@ const PHYSICIAN = "a0000000-0000-4000-8000-000000000001";
 const EMERGENCY = "a0000000-0000-4000-8000-000000000006";
 const CARDIOLOGY = "d0000000-0000-4000-8000-000000000001";
 const EMERGENCY_DEPT = "d0000000-0000-4000-8000-000000000002";
-const ONCOLOGY = "d0000000-0000-4000-8000-000000000003";
+
+/** Every tag a scenario (or the live replay log) can write under. */
+const ALL_SCENARIO_TAGS = [
+  "NORMAL",
+  "BRUTE_FORCE",
+  "BULK_ACCESS",
+  "SCOPE_VIOLATION",
+  "COMBINED_ATTACK",
+  "BUSY_CLINICIAN",
+  "LIVE",
+] as const;
 
 function patientId(index: number): string {
   return `b0000000-0000-4000-8000-${String(index).padStart(12, "0")}`;
@@ -34,6 +44,18 @@ function iso(base: Date, offsetSeconds: number): string {
 async function resetScenario(tag: string): Promise<void> {
   await db.from("alerts").delete().eq("scenario_tag", tag);
   await db.from("access_events").delete().eq("scenario_tag", tag);
+}
+
+/** Shared authorization check for scenario replay / reset. */
+function authorizeScenarioUpdate(ctx: SessionContext) {
+  return authorize({
+    role: ctx.role,
+    roleLabel: ctx.roleLabel,
+    departmentId: ctx.departmentId,
+    departmentName: ctx.departmentName,
+    action: "UPDATE",
+    resourceType: "SCENARIO",
+  });
 }
 
 interface Actor {
@@ -248,14 +270,7 @@ function generate(scenario: ScenarioId): GeneratedScenario {
 }
 
 export async function replayScenario(ctx: SessionContext, scenario: ScenarioId): Promise<ScenarioRunResult> {
-  const decision = authorize({
-    role: ctx.role,
-    roleLabel: ctx.roleLabel,
-    departmentId: ctx.departmentId,
-    departmentName: ctx.departmentName,
-    action: "UPDATE",
-    resourceType: "SCENARIO",
-  });
+  const decision = authorizeScenarioUpdate(ctx);
 
   await logAccessEvent({
     eventType: "SCENARIO",
@@ -310,23 +325,16 @@ export async function replayScenario(ctx: SessionContext, scenario: ScenarioId):
   return {
     scenario,
     eventsCreated: generated.events.length,
-    alertsCreated: alert && !alert.benign ? [alert] : alert ? [alert] : [],
+    alertsCreated: alert ? [alert] : [],
     verdict,
     benignExplanation,
   };
 }
 
 export async function resetAllScenarios(ctx: SessionContext): Promise<void> {
-  const decision = authorize({
-    role: ctx.role,
-    roleLabel: ctx.roleLabel,
-    departmentId: ctx.departmentId,
-    departmentName: ctx.departmentName,
-    action: "UPDATE",
-    resourceType: "SCENARIO",
-  });
+  const decision = authorizeScenarioUpdate(ctx);
   if (!decision.allowed) throw new Error("FORBIDDEN:Your role may not reset demo state.");
-  for (const tag of ["NORMAL", "BRUTE_FORCE", "BULK_ACCESS", "SCOPE_VIOLATION", "COMBINED_ATTACK", "BUSY_CLINICIAN", "LIVE"]) {
+  for (const tag of ALL_SCENARIO_TAGS) {
     await resetScenario(tag);
   }
   await logAccessEvent({
