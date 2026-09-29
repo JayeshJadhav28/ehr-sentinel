@@ -28,16 +28,30 @@ async function identityFor(userId: string): Promise<AlertEvidence["identity"]> {
     .select("id,username,display_name,role_id,department_id")
     .eq("id", userId)
     .maybeSingle();
-  const { data: role } = user
-    ? await db.from("roles").select("label").eq("id", user.role_id).maybeSingle()
-    : { data: null };
-  const { data: dept } = user?.department_id
-    ? await db.from("departments").select("name").eq("id", user.department_id).maybeSingle()
-    : { data: null };
+
+  if (!user) {
+    return {
+      userId: null,
+      username: "unknown",
+      displayName: "Unknown user",
+      role: "Unknown role",
+      department: "\u2014",
+    };
+  }
+
+  const [{ data: role }, { data: dept }] = await Promise.all([
+    user.role_id
+      ? db.from("roles").select("label").eq("id", user.role_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    user.department_id
+      ? db.from("departments").select("name").eq("id", user.department_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+
   return {
-    userId: user?.id ?? null,
-    username: user?.username ?? "unknown",
-    displayName: user?.display_name ?? "Unknown user",
+    userId: user.id,
+    username: user.username ?? "unknown",
+    displayName: user.display_name ?? "Unknown user",
     role: role?.label ?? "Unknown role",
     department: dept?.name ?? "\u2014",
   };
@@ -69,9 +83,7 @@ export async function evaluateUser(options: DetectionRunOptions): Promise<Persis
 
   const anyTriggered = outcome.rules.some((r) => r.triggered);
   if (!anyTriggered && !outcome.benign) return null;
-  if (outcome.benign && options.persistBenign === false) return null;
-  if (outcome.benign && !outcome.rules.some((r) => r.triggered)) {
-    // Nothing volumetric happened; no record worth surfacing.
+  if (outcome.benign && (options.persistBenign === false || !anyTriggered)) {
     return null;
   }
 
@@ -95,9 +107,13 @@ export async function evaluateUser(options: DetectionRunOptions): Promise<Persis
   if (error) throw new Error(`ALERT_WRITE_FAILED:${error.message}`);
 
   const supporting = outcome.evidence.supportingEventIds;
-  if (supporting.length) {
+  if (supporting.length > 0) {
     await db.from("alert_events").insert(
-      supporting.map((eventId) => ({ alert_id: alertId, event_id: eventId, relation_type: "SUPPORTING" })),
+      supporting.map((eventId) => ({
+        alert_id: alertId,
+        event_id: eventId,
+        relation_type: "SUPPORTING",
+      })),
     );
   }
 
