@@ -19,6 +19,9 @@ interface Node {
   external: boolean;
 }
 
+/** Euler-Mascheroni constant, used by the harmonic-number approximation. */
+const EULER_MASCHERONI = 0.5772156649;
+
 /** Deterministic PRNG (mulberry32) so every run produces identical scores. */
 function prng(seed: number): () => number {
   let a = seed >>> 0;
@@ -31,10 +34,12 @@ function prng(seed: number): () => number {
   };
 }
 
+/** Approximation of the n-th harmonic number H(n). */
 function harmonic(n: number): number {
-  return Math.log(n) + 0.5772156649;
+  return Math.log(n) + EULER_MASCHERONI;
 }
 
+/** Average path length of an unsuccessful search in a binary search tree of n points. */
 function cFactor(n: number): number {
   if (n <= 1) return 1;
   return 2 * harmonic(n - 1) - (2 * (n - 1)) / n;

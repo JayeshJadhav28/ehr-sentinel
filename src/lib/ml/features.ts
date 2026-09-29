@@ -3,6 +3,12 @@ import type { ContextSignals } from "@/lib/detection/contextSignals";
 import type { AccessEvent } from "@/lib/types/audit";
 import type { BehavioralFeatures, BehaviorProfile } from "@/lib/types/behavior";
 
+const MS_PER_MINUTE = 60_000;
+/** Look-back for the failed_logins_5m feature. */
+const FAILED_LOGIN_WINDOW_MINUTES = 5;
+/** Look-back for the records_returned_15m feature. */
+const RECORDS_WINDOW_MINUTES = 15;
+
 /**
  * Feature builder - schema `features-v1`.
  * The exact same feature vector is produced for the TypeScript development
@@ -14,15 +20,15 @@ export function buildFeatures(
   signals: ContextSignals,
   now: Date,
 ): BehavioralFeatures {
-  const fiveMinAgo = now.getTime() - 5 * 60_000;
-  const fifteenMinAgo = now.getTime() - 15 * 60_000;
+  const failedLoginCutoff = now.getTime() - FAILED_LOGIN_WINDOW_MINUTES * MS_PER_MINUTE;
+  const recordsCutoff = now.getTime() - RECORDS_WINDOW_MINUTES * MS_PER_MINUTE;
 
   const failed5m = windowEvents.filter(
-    (e) => e.eventType === "AUTH" && e.result === "FAILURE" && new Date(e.timestamp).getTime() >= fiveMinAgo,
+    (e) => e.eventType === "AUTH" && e.result === "FAILURE" && new Date(e.timestamp).getTime() >= failedLoginCutoff,
   ).length;
 
   const records15m = windowEvents
-    .filter((e) => e.result === "SUCCESS" && new Date(e.timestamp).getTime() >= fifteenMinAgo)
+    .filter((e) => e.result === "SUCCESS" && new Date(e.timestamp).getTime() >= recordsCutoff)
     .reduce((sum, e) => sum + e.recordsReturned, 0);
 
   const offScope1h = windowEvents.filter(

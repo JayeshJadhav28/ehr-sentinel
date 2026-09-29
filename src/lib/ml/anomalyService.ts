@@ -9,10 +9,24 @@ import {
 } from "@/lib/types/behavior";
 import { IsolationForest } from "./isolationForest";
 
+/** Size of the synthetic "normal behaviour" training sample. */
+const TRAINING_ROWS = 240;
+/** Isolation Forest settings for the development adapter. */
+const FOREST_TREES = 120;
+const FOREST_SAMPLE_SIZE = 64;
+const FOREST_SEED = 20260101;
+/** How many top contributing features are returned as evidence. */
+const TOP_CONTRIBUTIONS = 5;
+/**
+ * Training-set centre per feature (same order as FEATURE_KEYS), used as the
+ * "neutral" value when measuring each feature's contribution.
+ */
+const NEUTRAL_FEATURES = [0, 8, 3, 0, 0, 0, 1, 0.4, 0];
+
 /** Deterministic synthetic "normal behaviour" training sample (features-v1). */
 function buildTrainingSet(): number[][] {
   const rows: number[][] = [];
-  for (let i = 0; i < 240; i += 1) {
+  for (let i = 0; i < TRAINING_ROWS; i += 1) {
     const j = (i * 37) % 97;
     rows.push([
       j % 11 === 0 ? 1 : 0, // failed_logins_5m
@@ -31,7 +45,7 @@ function buildTrainingSet(): number[][] {
 
 let forest: IsolationForest | null = null;
 function getForest(): IsolationForest {
-  if (!forest) forest = new IsolationForest(buildTrainingSet(), 120, 64, 20260101);
+  if (!forest) forest = new IsolationForest(buildTrainingSet(), FOREST_TREES, FOREST_SAMPLE_SIZE, FOREST_SEED);
   return forest;
 }
 
@@ -53,15 +67,14 @@ export class LocalIsolationForestAdapter implements AnomalyDetectionService {
 
     // Feature contribution = score change when the feature is reset to its
     // training-set centre (a leave-one-out perturbation, not a SHAP value).
-    const neutral = [0, 8, 3, 0, 0, 0, 1, 0.4, 0];
     const contributions: FeatureContribution[] = FEATURE_KEYS.map((key, idx) => {
       const perturbed = [...vector];
-      perturbed[idx] = neutral[idx] ?? 0;
+      perturbed[idx] = NEUTRAL_FEATURES[idx] ?? 0;
       const delta = anomalyScore - base.score(perturbed);
       return { feature: key, value: vector[idx] ?? 0, contribution: Number(delta.toFixed(4)) };
     })
       .sort((a, b) => b.contribution - a.contribution)
-      .slice(0, 5);
+      .slice(0, TOP_CONTRIBUTIONS);
 
     const top = contributions.filter((c) => c.contribution > 0).map((c) => c.feature);
 
