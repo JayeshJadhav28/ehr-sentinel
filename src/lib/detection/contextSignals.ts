@@ -2,6 +2,11 @@ import { DETECTION_CONFIG } from "@/lib/constants";
 import type { AccessEvent } from "@/lib/types/audit";
 import type { BehaviorProfile } from "@/lib/types/behavior";
 
+/** Share of window accesses outside working hours that counts as "outside working hours". */
+const OUTSIDE_HOURS_RATIO_THRESHOLD = 0.5;
+/** Avg records per action at or above which a user's history counts as elevated (e.g. ED physician). */
+const HISTORICALLY_ELEVATED_RECORDS_PER_ACTION = 14;
+
 export interface ContextSignals {
   afterHoursRatio: number;
   outsideWorkingHours: boolean;
@@ -54,11 +59,12 @@ export function buildContextSignals(
   const deniedCount = windowEvents.filter((e) => e.result === "DENIED").length;
   const allAccessesAssigned = accesses.length > 0 && deniedCount === 0;
 
-  const historicallyElevated = !!profile && profile.avgRecordsPerAction >= 14;
+  const historicallyElevated =
+    !!profile && profile.avgRecordsPerAction >= HISTORICALLY_ELEVATED_RECORDS_PER_ACTION;
 
   return {
     afterHoursRatio,
-    outsideWorkingHours: afterHoursRatio > 0.5,
+    outsideWorkingHours: afterHoursRatio > OUTSIDE_HOURS_RATIO_THRESHOLD,
     departmentChangeRate,
     uniquePatients1h,
     newSourceFlag,

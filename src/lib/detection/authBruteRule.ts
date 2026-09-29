@@ -21,13 +21,19 @@ export function authBruteRule(events: AccessEvent[], now: Date): RuleTrigger {
   const triggered = failures.length >= cfg.failureThreshold;
   const escalated = failures.length >= cfg.escalationFailures || ips.size >= cfg.escalationDistinctIps;
 
-  const successAfter = events.some(
-    (e) =>
-      e.eventType === "AUTH" &&
-      e.result === "SUCCESS" &&
-      failures.length > 0 &&
-      new Date(e.timestamp).getTime() > new Date(failures[0]!.timestamp).getTime(),
-  );
+  // Earliest failure in the window (does not rely on event ordering).
+  const firstFailureAt = failures.length
+    ? Math.min(...failures.map((e) => new Date(e.timestamp).getTime()))
+    : null;
+
+  const successAfter =
+    firstFailureAt !== null &&
+    events.some(
+      (e) =>
+        e.eventType === "AUTH" &&
+        e.result === "SUCCESS" &&
+        new Date(e.timestamp).getTime() > firstFailureAt,
+    );
 
   return {
     ruleId: AUTH_BRUTE_RULE_ID,
@@ -41,7 +47,7 @@ export function authBruteRule(events: AccessEvent[], now: Date): RuleTrigger {
       : `${failures.length} failed authentication attempts in the last ${cfg.windowMinutes} minutes (threshold ${cfg.failureThreshold}).`,
     supportingEventIds: failures.map((e) => e.id),
     comparison: {
-      metric: "Failed logins in 5 minutes",
+      metric: `Failed logins in ${cfg.windowMinutes} minutes`,
       observed: `${failures.length} failures`,
       expected: `< ${cfg.failureThreshold} failures`,
       deviation: `${ips.size} distinct source address${ips.size === 1 ? "" : "es"}`,
